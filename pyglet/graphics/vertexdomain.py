@@ -25,7 +25,7 @@ import ctypes
 
 from pyglet.gl import *
 from pyglet.graphics import allocation, shader, vertexarray
-from pyglet.graphics.vertexbuffer import BufferObject, AttributeBufferObject
+from pyglet.graphics.vertexbuffer import BufferObject, AttributeBufferObject, PersistentBufferObject
 
 
 def _nearest_pow2(v):
@@ -69,7 +69,7 @@ def _make_attribute_property(name):
     def _attribute_getter(self):
         attribute = self.domain.attribute_names[name]
         region = attribute.buffer.get_region(self.start, self.count)
-        attribute.buffer.invalidate_region(self.start, self.count)
+        # attribute.buffer.invalidate_region(self.start, self.count)
         return region
 
     def _attribute_setter(self, data):
@@ -108,7 +108,8 @@ class VertexDomain:
             self.attribute_names[attribute.name] = attribute
 
             # Create buffer:
-            attribute.buffer = AttributeBufferObject(attribute.stride * self.allocator.capacity, attribute)
+            # attribute.buffer = AttributeBufferObject(attribute.stride * self.allocator.capacity, attribute)
+            attribute.buffer = PersistentBufferObject(attribute.stride * self.allocator.capacity, attribute)
 
             self.buffer_attributes.append((attribute.buffer, (attribute,)))
 
@@ -133,8 +134,9 @@ class VertexDomain:
             return self.allocator.alloc(count)
         except allocation.AllocatorMemoryException as e:
             capacity = _nearest_pow2(e.requested_capacity)
-            for buffer, _ in self.buffer_attributes:
-                buffer.resize(capacity * buffer.attribute_stride)
+            for buffer, attributes in self.buffer_attributes:
+                for attribute in attributes:
+                    buffer.resize(capacity * attribute.stride)
             self.allocator.set_capacity(capacity)
             return self.allocator.alloc(count)
 
@@ -144,8 +146,9 @@ class VertexDomain:
             return self.allocator.realloc(start, count, new_count)
         except allocation.AllocatorMemoryException as e:
             capacity = _nearest_pow2(e.requested_capacity)
-            for buffer, _ in self.buffer_attributes:
-                buffer.resize(capacity * buffer.attribute_stride)
+            for buffer, attributes in self.buffer_attributes:
+                for attribute in attributes:
+                    buffer.resize(capacity * attribute.stride)
             self.allocator.set_capacity(capacity)
             return self.allocator.realloc(start, count, new_count)
 
@@ -288,10 +291,13 @@ class VertexList:
 
     def set_attribute_data(self, name, data):
         attribute = self.domain.attribute_names[name]
-        array_start = attribute.count * self.start
-        array_end = attribute.count * self.count + array_start
-        attribute.buffer.data[array_start:array_end] = data
-        attribute.buffer.invalidate_region(self.start, self.count)
+
+        attribute.set_region(attribute.buffer, self.start, self.count, data)
+
+        # array_start = attribute.count * self.start
+        # array_end = attribute.count * self.count + array_start
+        # attribute.buffer.data[array_start:array_end] = data
+        # attribute.buffer.invalidate_region(self.start, self.count)
 
 
 class IndexedVertexDomain(VertexDomain):
