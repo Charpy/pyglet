@@ -92,6 +92,7 @@ class VertexDomain:
         self.program = program          # Needed a reference for migration
         self.attribute_meta = attribute_meta
         self.allocator = allocation.Allocator(self._initial_count)
+        self.vao = vertexarray.VertexArray()
 
         self.attribute_names = {}       # name: attribute
         self.buffer_attributes = []     # list of (buffer, attributes)
@@ -109,7 +110,7 @@ class VertexDomain:
 
             # Create buffer:
             # attribute.buffer = AttributeBufferObject(attribute.stride * self.allocator.capacity, attribute)
-            attribute.buffer = PersistentBufferObject(attribute.stride * self.allocator.capacity, attribute)
+            attribute.buffer = PersistentBufferObject(attribute.stride * self.allocator.capacity, attribute, self.vao)
 
             self.buffer_attributes.append((attribute.buffer, (attribute,)))
 
@@ -119,7 +120,6 @@ class VertexDomain:
         # Make a custom VertexList class w/ properties for each attribute in the ShaderProgram:
         self._vertexlist_class = type("VertexList", (VertexList,), self._property_dict)
 
-        self.vao = vertexarray.VertexArray()
         self.vao.bind()
         for buffer, attributes in self.buffer_attributes:
             buffer.bind()
