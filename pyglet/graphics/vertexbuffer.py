@@ -308,10 +308,12 @@ class PersistentBufferObject(AbstractBuffer):
         self.bind()
 
         self.flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT
-        data = (GLbyte * size)()
+        data = (GLubyte * size)()
         glBufferStorage(GL_ARRAY_BUFFER, size, data, self.flags)
 
-        ptr_type = attribute.c_type * (size // attribute.element_size)
+        # size is the allocator size * attribute.stride
+        number = size // attribute.element_size
+        ptr_type = attribute.c_type * number
         self.data = self.map_range(0, size, ctypes.POINTER(ptr_type), self.flags)
 
         print(len(self.data), ptr_type, size, ctypes.sizeof(ptr_type))
@@ -349,12 +351,9 @@ class PersistentBufferObject(AbstractBuffer):
         array_end = self.attribute_count * count + array_start
         self.data[array_start:array_end] = data
 
-    # def set_data_region(self, data, start, length):
-    #     glBindBuffer(GL_ARRAY_BUFFER, self.id)
-    #     glBufferSubData(GL_ARRAY_BUFFER, start, length, data)
-
     def resize(self, size):
-        temp = (GLbyte * size)()
+        # Copy old data to temp
+        temp = (GLubyte * size)()
         ctypes.memmove(temp, self.data, min(size, self.size))
         glDeleteBuffers(1, GLuint(self.id))
 
