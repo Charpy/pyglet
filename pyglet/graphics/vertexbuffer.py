@@ -316,10 +316,6 @@ class PersistentBufferObject(AbstractBuffer):
         ptr_type = attribute.c_type * number
         self.data = self.map_range(0, size, ctypes.POINTER(ptr_type), self.flags)
 
-        print(len(self.data), ptr_type, size, ctypes.sizeof(ptr_type))
-
-        # print(ctypes.sizeof(attribute.c_type * size), ctypes.sizeof(self.data), size)
-
     def bind(self, target=GL_ARRAY_BUFFER):
         glBindBuffer(target, self.id)
 
@@ -333,15 +329,8 @@ class PersistentBufferObject(AbstractBuffer):
 
     @lru_cache(maxsize=None)
     def get_region(self, start, count):
-
-        # print("persistent get region")
-
         byte_start = self.attribute_stride * start  # byte offset
         array_count = self.attribute_count * count  # number of values
-
-        # array_start = self.attribute_count * start
-        # array_end = self.attribute_count * count + array_start
-        # return self.data[array_start:array_end]
 
         ptr_type = ctypes.POINTER(self.attribute_ctype * array_count)
         return ctypes.cast(ctypes.addressof(self.data) + byte_start, ptr_type).contents
@@ -352,7 +341,7 @@ class PersistentBufferObject(AbstractBuffer):
         self.data[array_start:array_end] = data
 
     def resize(self, size):
-        # Copy old data to temp
+        # Create temporary copy of current data
         temp = (GLubyte * size)()
         ctypes.memmove(temp, self.data, min(size, self.size))
         glDeleteBuffers(1, GLuint(self.id))
@@ -374,7 +363,9 @@ class PersistentBufferObject(AbstractBuffer):
         ptr_type = self.attribute.c_type * (size // self.attribute.element_size)
         self.data = self.map_range(0, size, ctypes.POINTER(ptr_type), self.flags)
 
+        self.size = size
         self.get_region.cache_clear()
 
     def sub_data(self):
+        # Not necessary with persistent mapping
         pass
